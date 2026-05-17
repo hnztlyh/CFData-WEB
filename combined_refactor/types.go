@@ -218,4 +218,5 @@ var (
 	speedTestWorkers = 5
 	debugMode        bool
 	debugLevel       = "error"
+	skipGeoCheck     bool
 )

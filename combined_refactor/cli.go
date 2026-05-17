@@ -169,7 +169,7 @@ var (
 		{name: "out", description: "输出文件名", defaultValue: "ip.csv"},
 		{name: "progress", description: "是否输出进度日志", defaultValue: "true"},
 		{name: "nocolor", description: "禁用颜色输出（cmd 等不支持 ANSI 的终端可开启避免乱码）", defaultValue: "false"},
-		{name: "url", description: "测速下载地址", defaultValue: "speed.cloudflare.com/__down?bytes=99999999"},
+		{name: "url", description: "测速下载地址；可选 speed.cloudflare.com/__down?bytes=99999999", defaultValue: "speed.okl.abrdns.com"},
 		{name: "dns", description: "自定义 DNS 服务器，例如 1.1.1.1 或 223.5.5.5,8.8.8.8；默认系统 DNS 优先，失败回退内置 DNS；显式设置时强制使用指定 DNS", defaultValue: defaultDNSServers},
 		{name: "debug", description: "调试输出等级：error、all；true 等同 error", defaultValue: "false"},
 		{name: "compactipv4", description: "精简本地 IPv4 地址库：按 /24 子网测 TCP:80 连通性并覆盖 ips-v4.txt", defaultValue: "false"},
@@ -260,6 +260,17 @@ func runCLI(cfg *cliConfig) error {
 		}
 	}
 	printCLIConfig(cfg)
+
+	if !skipGeoCheck {
+		ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+		country := detectCloudflareTraceCountry(ctx)
+		cancel()
+		if !confirmCLIProxyCountry(country) {
+			return fmt.Errorf("已取消：当前网络环境标签为 %s", firstNonEmpty(country, "未知"))
+		}
+	} else {
+		fmt.Println("[proxy-check] 已通过 -skipgeo 跳过地区/代理环境验证")
+	}
 
 	if cfg.compactIPv4 {
 		return runCompactIPv4CLI(cfg)
@@ -455,7 +466,7 @@ func defaultCLIExportConfig() cliExportConfig {
 }
 
 func defaultCLIFileConfig() cliFileConfig {
-	return cliFileConfig{CLI: true, Mode: "official", IPType: 4, Threads: 100, Out: "ip.csv", SpeedTest: 0, Progress: true, NoColor: false, URL: "speed.cloudflare.com/__down?bytes=99999999", DNS: defaultDNSServers, Debug: false, CompactIPv4: false, TestPort: 443, Delay: 500, DC: "", SpeedLimit: 5, SpeedMin: 0.1, File: "", SourceURL: "", NSBIPType: "all", NSBQualified: true, NSBDC: "", TLS: true, Compact: true, ResultLimit: 1000, NSBSpeedMin: 0.1, NSBSpeedLimit: 5, Format: "txt", Fields: "compact", Custom: "", GitHub: false, GHBranch: "main", GHPath: "", GHMessage: "update cfdata results"}
+	return cliFileConfig{CLI: true, Mode: "official", IPType: 4, Threads: 100, Out: "ip.csv", SpeedTest: 0, Progress: true, NoColor: false, URL: "speed.okl.abrdns.com", DNS: defaultDNSServers, Debug: false, CompactIPv4: false, TestPort: 443, Delay: 500, DC: "", SpeedLimit: 5, SpeedMin: 0.1, File: "", SourceURL: "", NSBIPType: "all", NSBQualified: true, NSBDC: "", TLS: true, Compact: true, ResultLimit: 1000, NSBSpeedMin: 0.1, NSBSpeedLimit: 5, Format: "txt", Fields: "compact", Custom: "", GitHub: false, GHBranch: "main", GHPath: "", GHMessage: "update cfdata results"}
 }
 
 func (c cliFileConfig) Export() cliExportConfig {
@@ -625,7 +636,7 @@ func buildCLIConfigHelp() []cliConfigHelp {
 		{Name: "speedtest", Description: "非标测速线程数；表示同时测速的 IP 数量，0 表示不测速", Default: "0"},
 		{Name: "progress", Description: "输出进度日志", Default: "true", Options: []string{"true", "false"}},
 		{Name: "nocolor", Description: "禁用 ANSI 颜色输出", Default: "false", Options: []string{"true", "false"}},
-		{Name: "url", Description: "测速下载地址，不含协议前缀", Default: "speed.cloudflare.com/__down?bytes=99999999"},
+		{Name: "url", Description: "测速下载地址，不含协议前缀；可选 speed.cloudflare.com/__down?bytes=99999999", Default: "speed.okl.abrdns.com"},
 		{Name: "dns", Description: "自定义 DNS 服务器；默认系统 DNS 优先，失败回退内置 DNS；显式设置时强制使用指定 DNS。用于 IP 库、locations、ASN、GitHub、网络 URL 输入等需要 DNS 的外部请求", Default: defaultDNSServers},
 		{Name: "debug", Description: "调试输出等级；error 记录程序错误和下载/更新/API 异常，all 额外包含测速失败等全部明细", Default: "false", Options: []string{"false", "error", "all", "true"}},
 		{Name: "compactipv4", Description: "精简本地 IPv4 地址库并覆盖 ips-v4.txt", Default: "false", Options: []string{"true", "false"}},
@@ -1142,7 +1153,7 @@ func printCLIConfig(cfg *cliConfig) {
 		{"out", lookupCLIFlagDescription(cliCommonFlags, "out"), cfg.outFile, "ip.csv"},
 		{"progress", lookupCLIFlagDescription(cliCommonFlags, "progress"), strconv.FormatBool(cfg.showProgress), "true"},
 		{"nocolor", lookupCLIFlagDescription(cliCommonFlags, "nocolor"), strconv.FormatBool(cfg.noColor), "false"},
-		{"url", lookupCLIFlagDescription(cliCommonFlags, "url"), speedTestURL, "speed.cloudflare.com/__down?bytes=99999999"},
+		{"url", lookupCLIFlagDescription(cliCommonFlags, "url"), speedTestURL, "speed.okl.abrdns.com"},
 		{"debug", lookupCLIFlagDescription(cliCommonFlags, "debug"), debugFlagValue{}.String(), "false"},
 		{"compactipv4", lookupCLIFlagDescription(cliCommonFlags, "compactipv4"), strconv.FormatBool(cfg.compactIPv4), "false"},
 		{"config", lookupCLIFlagDescription(cliCommonFlags, "config"), cfg.export.ConfigFile, "二进制目录/cfdata-config.json"},

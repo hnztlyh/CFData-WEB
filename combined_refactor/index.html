@@ -406,6 +406,13 @@
             color: var(--primary-color);
         }
 
+        .speed-url-select {
+            max-width: 170px;
+            flex: 0 0 170px !important;
+            min-height: 44px;
+            font-size: 12px;
+        }
+
         .option-item.full-width {
             grid-column: 1 / -1;
         }
@@ -416,8 +423,10 @@
             border-radius: 10px;
             background: var(--bg-color);
             color: var(--text-main);
-            padding: 12px;
+            min-height: 44px;
+            padding: 10px 12px;
             font-size: 14px;
+            line-height: 20px;
         }
 
         select {
@@ -788,6 +797,60 @@
             border-radius: 16px;
             box-shadow: 0 24px 80px rgba(15, 23, 42, 0.35);
             padding: 22px;
+        }
+
+        .proxy-warning-modal {
+            width: min(680px, 100%);
+        }
+
+        .proxy-warning-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .proxy-warning-title {
+            margin: 0;
+            color: #ef4444;
+            font-size: 24px;
+        }
+
+        .proxy-warning-country {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: rgba(239, 68, 68, 0.10);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.22);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .proxy-warning-card p,
+        .proxy-warning-card li {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .proxy-warning-card ul {
+            margin: 0;
+            padding-left: 22px;
+        }
+
+        .proxy-warning-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-top: 4px;
+        }
+
+        .proxy-warning-actions .danger-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            color: #fff !important;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.25) !important;
         }
 
         .modal-body {
@@ -1269,6 +1332,19 @@
             .option-item .field-with-action {
                 width: 100%;
             }
+
+            .option-item .field-with-action:has(.speed-url-select) {
+                flex-wrap: wrap;
+            }
+
+            .option-item .field-with-action .speed-url-select {
+                flex: 1 0 100% !important;
+                max-width: 100%;
+            }
+
+            .option-item .field-with-action .speed-url-select + input {
+                flex: 1 1 calc(100% - 42px);
+            }
         }
 
         body {
@@ -1400,10 +1476,15 @@
                 <div class="option-item full-width">
                     <span class="label">🔗 测速网址</span>
                     <div class="field-with-action">
-                        <input id="speedTestUrl" type="text" value="speed.cloudflare.com/__down?bytes=99999999"
-                            placeholder="例如 speed.cloudflare.com/__down?bytes=99999999">
+                        <select id="officialSpeedUrlPreset" class="speed-url-select" onchange="applySpeedUrlPreset('speedTestUrl', this.value)">
+                            <option value="speed.okl.abrdns.com" selected>默认测速</option>
+                            <option value="speed.cloudflare.com/__down?bytes=99999999">Cloudflare</option>
+                            <option value="custom">手动输入</option>
+                        </select>
+                        <input id="speedTestUrl" type="text" value="speed.okl.abrdns.com"
+                            placeholder="例如 speed.okl.abrdns.com">
                         <button class="mini-action-btn" title="恢复默认测速网站"
-                            onclick="resetDefaultSpeedUrl('speedTestUrl')">↺</button>
+                            onclick="resetDefaultSpeedUrl('speedTestUrl', 'officialSpeedUrlPreset')">↺</button>
                     </div>
                 </div>
                 <div class="option-item full-width">
@@ -1486,10 +1567,15 @@
                 <div class="option-item full-width">
                     <span class="label">🔗 测速网址</span>
                     <div class="field-with-action">
-                        <input id="nsbSpeedUrl" type="text" value="speed.cloudflare.com/__down?bytes=99999999"
-                            placeholder="speed.cloudflare.com/__down?bytes=99999999">
+                        <select id="nsbSpeedUrlPreset" class="speed-url-select" onchange="applySpeedUrlPreset('nsbSpeedUrl', this.value)">
+                            <option value="speed.okl.abrdns.com" selected>默认测速</option>
+                            <option value="speed.cloudflare.com/__down?bytes=99999999">Cloudflare</option>
+                            <option value="custom">手动输入</option>
+                        </select>
+                        <input id="nsbSpeedUrl" type="text" value="speed.okl.abrdns.com"
+                            placeholder="speed.okl.abrdns.com">
                         <button class="mini-action-btn" title="恢复默认测速网站"
-                            onclick="resetDefaultSpeedUrl('nsbSpeedUrl')">↺</button>
+                            onclick="resetDefaultSpeedUrl('nsbSpeedUrl', 'nsbSpeedUrlPreset')">↺</button>
                     </div>
                 </div>
                 <div class="option-item full-width">
@@ -1732,9 +1818,34 @@
         </div>
     </div>
 
+    <div class="modal-mask" id="proxyWarningMask">
+        <div class="result-modal proxy-warning-modal">
+            <div class="modal-head">
+                <h3>代理检测警告</h3>
+                <button class="modal-close" onclick="cancelProxyWarning()">×</button>
+            </div>
+            <div class="proxy-warning-card">
+                <h3 class="proxy-warning-title">🚨 代理检测警告</h3>
+                <div class="proxy-warning-country">读取到的网络标签：<span id="proxyWarningCountry">未知</span></div>
+                <p>检测到您当前很可能处于代理/VPN环境中！</p>
+                <p>在代理状态下进行的IP优选测试结果将不准确，可能导致：</p>
+                <ul>
+                    <li>延迟数据失真，无法反映真实网络状况</li>
+                    <li>优选出的IP在直连环境下表现不佳</li>
+                    <li>测试结果对实际使用场景参考价值有限</li>
+                </ul>
+                <p><strong>建议操作：</strong>请关闭所有代理软件（VPN、科学上网工具等），确保处于直连网络环境后刷新页面重新测试。</p>
+                <div class="proxy-warning-actions">
+                    <button class="action-btn danger-btn" id="proxyWarningStopBtn" onclick="cancelProxyWarning()">停止测速</button>
+                    <button class="action-btn export-btn" id="proxyWarningContinueBtn" onclick="confirmProxyWarning()" disabled>强制继续 (5)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let ws;
-        let defaultSpeedTestUrl = "speed.cloudflare.com/__down?bytes=99999999";
+        let defaultSpeedTestUrl = "speed.okl.abrdns.com";
         let isTaskRunning = false;
         let isStoppingTask = false;
         let scanData = [];
@@ -1772,6 +1883,15 @@
         let runningTaskLabel = '';
         let runningTaskMode = '';
         let runningTaskTab = 'scan';
+        let stopWatchdogTimer = null;
+        let cfCountry = 'CN';
+        let proxyWarningRequired = false;
+        let proxyWarningBypassed = false;
+        let proxyWarningPendingAction = null;
+        let proxyWarningCountdownTimer = null;
+        let proxyCountryCheckPending = false;
+        let proxyCountryCheckTimer = null;
+        let proxyWarningSinglePass = false;
         let resultModalMode = 'scan';
         let resultFieldOrder = [];
         let resultCustomFields = [];
@@ -1921,10 +2041,31 @@
             speedTestInput.disabled = true;
         }
 
-        function resetDefaultSpeedUrl(targetId = 'speedTestUrl') {
+        function applySpeedUrlPreset(targetId, value) {
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            if (value === 'custom') {
+                input.value = '';
+                input.focus();
+                return;
+            }
+            input.value = value || defaultSpeedTestUrl;
+        }
+
+        function syncSpeedUrlPreset(targetId, presetId) {
+            const input = document.getElementById(targetId);
+            const preset = document.getElementById(presetId);
+            if (!input || !preset) return;
+            const value = input.value.trim();
+            const option = Array.from(preset.options).find((item) => item.value === value);
+            preset.value = option ? value : 'custom';
+        }
+
+        function resetDefaultSpeedUrl(targetId = 'speedTestUrl', presetId = '') {
             const input = document.getElementById(targetId);
             if (!input) return;
             input.value = defaultSpeedTestUrl;
+            if (presetId) syncSpeedUrlPreset(targetId, presetId);
         }
 
         function resetAllConfig() {
@@ -1980,6 +2121,7 @@
         });
 
         function startCompactIPv4() {
+            if (requireProxyWarning(() => startCompactIPv4())) return;
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 alert('与服务端的连接尚未就绪，请等待"已连接服务器"后再试');
                 return;
@@ -2048,7 +2190,11 @@
                 }
             };
             ws.onclose = () => {
+                clearStopWatchdog();
                 resetCurrentSpeedButton();
+                if (isTaskRunning || officialBatchSpeedRunning || isStoppingTask) {
+                    resetStoppedTaskUI('连接断开，当前任务状态已重置');
+                }
                 updateStatus('连接断开，3秒后重连...', false);
                 log('连接断开，正在重连...');
                 setTimeout(connect, 3000);
@@ -2071,6 +2217,113 @@
             div.appendChild(document.createTextNode(' ' + text));
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
+        }
+
+        function requireProxyWarning(action) {
+            if (proxyWarningSinglePass) {
+                proxyWarningSinglePass = false;
+                return false;
+            }
+            if (proxyWarningBypassed) return false;
+            if (proxyCountryCheckPending) return true;
+            proxyWarningPendingAction = action;
+            proxyCountryCheckPending = true;
+            if (proxyCountryCheckTimer) window.clearTimeout(proxyCountryCheckTimer);
+            proxyCountryCheckTimer = window.setTimeout(() => {
+                proxyCountryCheckPending = false;
+                proxyCountryCheckTimer = null;
+                if (proxyWarningRequired) {
+                    showProxyWarningModal();
+                    return;
+                }
+                const pending = proxyWarningPendingAction;
+                proxyWarningPendingAction = null;
+                if (typeof pending === 'function') pending();
+            }, 8000);
+            if (!wsSend({ type: 'check_proxy_country', data: {} })) {
+                proxyCountryCheckPending = false;
+                window.clearTimeout(proxyCountryCheckTimer);
+                proxyCountryCheckTimer = null;
+                proxyWarningPendingAction = null;
+                alert('连接未就绪，请等待重连后再试');
+            }
+            return true;
+        }
+
+        function handleProxyCountryResult(data) {
+            cfCountry = String(data?.cfCountry || 'CN').toUpperCase();
+            proxyWarningRequired = !!data?.proxyWarning;
+            proxyCountryCheckPending = false;
+            if (proxyCountryCheckTimer) {
+                window.clearTimeout(proxyCountryCheckTimer);
+                proxyCountryCheckTimer = null;
+            }
+            if (proxyWarningRequired) {
+                log(`代理检测警告：当前网络标签 ${cfCountry}`);
+                showProxyWarningModal();
+                return;
+            }
+            const action = proxyWarningPendingAction;
+            proxyWarningPendingAction = null;
+            proxyWarningSinglePass = true;
+            if (typeof action === 'function') action();
+        }
+
+        function requireCachedProxyWarning(action) {
+            if (!proxyWarningRequired || proxyWarningBypassed) return false;
+            proxyWarningPendingAction = action;
+            showProxyWarningModal();
+            return true;
+        }
+
+        function showProxyWarningModal() {
+            const mask = document.getElementById('proxyWarningMask');
+            const btn = document.getElementById('proxyWarningContinueBtn');
+            const countryEl = document.getElementById('proxyWarningCountry');
+            if (!mask || !btn) return;
+            if (countryEl) countryEl.textContent = cfCountry || '未知';
+            mask.classList.add('active');
+            let remaining = 5;
+            btn.disabled = true;
+            btn.textContent = `强制继续 (${remaining})`;
+            if (proxyWarningCountdownTimer) window.clearInterval(proxyWarningCountdownTimer);
+            proxyWarningCountdownTimer = window.setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    window.clearInterval(proxyWarningCountdownTimer);
+                    proxyWarningCountdownTimer = null;
+                    btn.disabled = false;
+                    btn.textContent = '强制继续';
+                    return;
+                }
+                btn.textContent = `强制继续 (${remaining})`;
+            }, 1000);
+        }
+
+        function hideProxyWarningModal() {
+            const mask = document.getElementById('proxyWarningMask');
+            if (mask) mask.classList.remove('active');
+            if (proxyWarningCountdownTimer) {
+                window.clearInterval(proxyWarningCountdownTimer);
+                proxyWarningCountdownTimer = null;
+            }
+        }
+
+        function cancelProxyWarning() {
+            hideProxyWarningModal();
+            proxyWarningPendingAction = null;
+            proxyCountryCheckPending = false;
+            log(`代理检测警告：已取消测速（当前网络标签 ${cfCountry || '未知'}）`);
+        }
+
+        function confirmProxyWarning() {
+            const action = proxyWarningPendingAction;
+            proxyWarningBypassed = true;
+            proxyWarningPendingAction = null;
+            hideProxyWarningModal();
+            log(`代理检测警告：用户强制继续（当前网络标签 ${cfCountry || '未知'}）`);
+            proxyWarningSinglePass = true;
+            if (typeof action === 'function') action();
         }
 
         function switchMode(mode) {
@@ -2258,8 +2511,50 @@
         function finishRunningTask(buttonText = '✨ 开始扫描与测试') {
             isTaskRunning = false;
             isStoppingTask = false;
+            clearStopWatchdog();
             clearRunningTaskLabel();
             resetButton(buttonText);
+        }
+
+        function clearStopWatchdog() {
+            if (!stopWatchdogTimer) return;
+            window.clearTimeout(stopWatchdogTimer);
+            stopWatchdogTimer = null;
+        }
+
+        function startStopWatchdog() {
+            clearStopWatchdog();
+            stopWatchdogTimer = window.setTimeout(() => {
+                if (!isStoppingTask) return;
+                resetStoppedTaskUI('已手动终止，后台仍在清理；如立即重试提示已有任务，请稍后再试');
+            }, 30000);
+        }
+
+        function resetStoppedTaskUI(message = '已手动终止') {
+            clearStopWatchdog();
+            isStoppingTask = false;
+            officialAutoSpeedPending = false;
+            officialAutoStage = '';
+            officialBatchSpeedRunning = false;
+            officialTestCompletePending = false;
+            officialSpeedEndedByRateLimit = false;
+            currentTestingDC = '';
+            resetCurrentSpeedButton();
+            finishRunningTask('✨ 开始扫描与测试');
+            updateBatchSpeedButton();
+            finishCompactIPv4();
+            showDCSelection(dcList);
+            const status = document.getElementById('currentTestDC');
+            if (status && runningTaskMode !== 'nsb') status.textContent = message;
+            if (currentMode === 'official' && document.getElementById('test').classList.contains('active')) {
+                renderAllTestResults();
+            } else {
+                renderCurrentScanResults();
+            }
+            progressBar.style.background = 'var(--warning-color)';
+            progressBar.style.width = '100%';
+            progressBar.style.animation = 'none';
+            progressBar.textContent = message;
         }
 
         function resetButton(text = '✨ 开始扫描与测试') {
@@ -2664,6 +2959,7 @@
         }
 
         function selectDC(dc) {
+            if (requireProxyWarning(() => selectDC(dc))) return;
             if (isTaskRunning && currentTestingDC !== '') return;
             const port = parseInt(document.getElementById('testPort').value);
             const delay = parseInt(document.getElementById('testDelay').value) || 500;
@@ -2750,6 +3046,7 @@
         }
 
         function runSpeedTest(ip) {
+            if (requireProxyWarning(() => runSpeedTest(ip))) return;
             syncOfficialSpeedConfigState();
             if (isTaskRunning || officialBatchSpeedRunning) {
                 log('当前已有任务运行，单个测速已忽略');
@@ -2842,6 +3139,7 @@
         }
 
         function startOfficialBatchSpeed(auto = false, continued = false) {
+            if (requireProxyWarning(() => startOfficialBatchSpeed(auto, continued))) return false;
             if (officialBatchSpeedRunning) return false;
             if (!testData.length) {
                 if (!auto) alert('请先完成数据中心详细测试');
@@ -2965,9 +3263,12 @@
                     isStoppingTask = true;
                     setStartLoading('正在停止...');
                     showStoppingProgress();
+                    startStopWatchdog();
                 }
                 return;
             }
+
+            if (requireProxyWarning(() => startTask())) return;
 
             if (currentMode === 'official') {
                 startOfficialTask();
@@ -3791,13 +4092,22 @@
                 case 'init_config':
                     defaultSpeedTestUrl = msg.data.speedTestURL || defaultSpeedTestUrl;
                     webDebugMode = !!msg.data.debug;
+                    cfCountry = String(msg.data.cfCountry || 'CN').toUpperCase();
+                    proxyWarningRequired = !!msg.data.proxyWarning;
+                    proxyWarningBypassed = false;
                     if (webDebugMode) log('调试模式已开启，错误将输出到程序 log');
+                    if (proxyWarningRequired) log(`代理检测警告：当前网络标签 ${cfCountry}`);
                     document.getElementById('speedTestUrl').value = defaultSpeedTestUrl;
                     document.getElementById('nsbSpeedUrl').value = defaultSpeedTestUrl;
+                    syncSpeedUrlPreset('speedTestUrl', 'officialSpeedUrlPreset');
+                    syncSpeedUrlPreset('nsbSpeedUrl', 'nsbSpeedUrlPreset');
                     renderVersionInfo(msg.data || {});
                     break;
                 case 'version_info':
                     renderVersionInfo(msg.data || {});
+                    break;
+                case 'proxy_country_result':
+                    handleProxyCountryResult(msg.data || {});
                     break;
                 case 'scan_progress':
                     if (isStoppingTask) break;
@@ -3859,9 +4169,9 @@
                     officialAutoSpeedPending = false;
                     officialAutoStage = '';
                     officialBatchSpeedRunning = false;
-            officialSpeedEndedByRateLimit = !!msg.data?.rateLimited;
-            officialSpeedEnabledForResults = (msg.data?.qualified || 0) > 0;
-            officialContinueSpeedUnlocked = true;
+                    officialSpeedEndedByRateLimit = !!msg.data?.rateLimited;
+                    officialSpeedEnabledForResults = (msg.data?.qualified || 0) > 0;
+                    officialContinueSpeedUnlocked = true;
                     finishRunningTask('✨ 开始扫描与测试');
                     updateBatchSpeedButton();
                     setOfficialTestQualifiedFilter(officialSpeedEnabledForResults ? 'qualified' : 'all');
@@ -3953,19 +4263,7 @@
                     break;
 
                 case 'task_stopped':
-                    isStoppingTask = false;
-                    officialAutoSpeedPending = false;
-                    officialAutoStage = '';
-                    officialBatchSpeedRunning = false;
-                    officialTestCompletePending = false;
-                    officialSpeedEndedByRateLimit = false;
-                    finishRunningTask('✨ 开始扫描与测试');
-                    updateBatchSpeedButton();
-                    finishCompactIPv4();
-                    progressBar.style.background = 'var(--warning-color)';
-                    progressBar.style.width = '100%';
-                    progressBar.style.animation = 'none';
-                    progressBar.textContent = '已手动终止';
+                    resetStoppedTaskUI('已手动终止');
                     log('任务已手动终止');
                     break;
 
@@ -3991,24 +4289,23 @@
                     if (String(msg.data || '').includes('上传 GitHub')) {
                         setGitHubUploadStatus(String(msg.data), 'error');
                     }
-                    officialAutoSpeedPending = false;
-                    officialAutoStage = '';
-                    officialBatchSpeedRunning = false;
-                    officialTestCompletePending = false;
-                    officialSpeedEndedByRateLimit = false;
-                    if (currentSpeedTestingIP) {
-                        resetCurrentSpeedButton();
-                    }
-                    finishRunningTask('✨ 开始扫描与测试');
-                    updateBatchSpeedButton();
-                    finishCompactIPv4();
-                    progressBar.style.background = 'var(--error-color)';
-                    progressBar.style.width = '100%';
-                    progressBar.style.animation = 'none';
                     if (msg.data && (msg.data.toLowerCase().includes('cancel') || msg.data.toLowerCase().includes('stop'))) {
-                        progressBar.textContent = '已手动终止';
-                        progressBar.style.background = 'var(--warning-color)';
+                        resetStoppedTaskUI('已手动终止');
                     } else {
+                        officialAutoSpeedPending = false;
+                        officialAutoStage = '';
+                        officialBatchSpeedRunning = false;
+                        officialTestCompletePending = false;
+                        officialSpeedEndedByRateLimit = false;
+                        if (currentSpeedTestingIP) {
+                            resetCurrentSpeedButton();
+                        }
+                        finishRunningTask('✨ 开始扫描与测试');
+                        updateBatchSpeedButton();
+                        finishCompactIPv4();
+                        progressBar.style.background = 'var(--error-color)';
+                        progressBar.style.width = '100%';
+                        progressBar.style.animation = 'none';
                         progressBar.textContent = '任务失败';
                     }
                     log('错误: ' + msg.data);

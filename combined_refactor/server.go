@@ -65,12 +65,21 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 
+	cfCountry := cloudflareCountryFromHeader(r)
+	if !skipGeoCheck && cfCountry == "" {
+		ctx, cancel := context.WithTimeout(r.Context(), 7*time.Second)
+		cfCountry = detectCloudflareTraceCountry(ctx)
+		cancel()
+	}
 	session.sendWSMessage("init_config", map[string]interface{}{
 		"speedTestURL":     speedTestURL,
 		"speedTestWorkers": speedTestWorkers,
 		"debug":            debugMode,
 		"version":          appVersion,
 		"releaseURL":       releaseLatestURL,
+		"cfCountry":        cfCountry,
+		"proxyWarning":     !skipGeoCheck && shouldWarnProxyCountry(cfCountry),
+		"skipGeoCheck":     skipGeoCheck,
 	})
 	safeGo("version-check", session, func() {
 		ctx, cancel := context.WithTimeout(r.Context(), 7*time.Second)
@@ -236,6 +245,19 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		},
 		"reset_all_config": func(data json.RawMessage) {
 			resetAllConfigFiles(session)
+		},
+		"check_proxy_country": func(data json.RawMessage) {
+			if skipGeoCheck {
+				session.sendWSMessage("proxy_country_result", map[string]interface{}{"cfCountry": "SKIPPED", "proxyWarning": false, "skipGeoCheck": true})
+				return
+			}
+			country := cloudflareCountryFromHeader(r)
+			if country == "" {
+				ctx, cancel := context.WithTimeout(r.Context(), 7*time.Second)
+				country = detectCloudflareTraceCountry(ctx)
+				cancel()
+			}
+			session.sendWSMessage("proxy_country_result", map[string]interface{}{"cfCountry": country, "proxyWarning": shouldWarnProxyCountry(country)})
 		},
 		"github_upload": func(data json.RawMessage) {
 			var params githubUploadRequest

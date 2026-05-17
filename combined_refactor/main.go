@@ -16,7 +16,7 @@ import (
 
 var webUser, webPassword string
 var webSessionMinutes int
-var boolFlagNames = []string{"cli", "tls", "progress", "nocolor", "compactipv4", "compact", "github", "nsbqualified"}
+var boolFlagNames = []string{"cli", "tls", "progress", "nocolor", "compactipv4", "compact", "github", "nsbqualified", "skipgeo"}
 
 type latestReleaseInfo struct {
 	TagName string `json:"tag_name"`
@@ -146,7 +146,8 @@ func main() {
 	cliCfg := registerCLIFlags()
 
 	flag.IntVar(&listenPort, "port", 13335, "服务监听端口")
-	flag.StringVar(&speedTestURL, "url", "speed.cloudflare.com/__down?bytes=99999999", "测速下载地址（不含协议前缀）")
+	flag.StringVar(&speedTestURL, "url", "speed.okl.abrdns.com", "测速下载地址（不含协议前缀），可选 speed.cloudflare.com/__down?bytes=99999999")
+	flag.BoolVar(&skipGeoCheck, "skipgeo", false, "跳过地区/代理环境验证")
 	flag.StringVar(&customDNSServer, "dns", defaultDNSServers, "自定义 DNS 服务器，例如 223.5.5.5、8.8.8.8:53 或逗号分隔多个；默认系统 DNS 优先、失败回退到该内置 DNS，显式提供时强制使用指定 DNS")
 	flag.Var(debugFlagValue{}, "debug", "开启调试输出等级：error、all；也兼容 true/false，-debug 默认为 error")
 	flag.StringVar(&webUser, "user", "", "Web 认证用户名（不设置则不启用认证）")
@@ -224,6 +225,11 @@ func main() {
 		fmt.Println("警告： 需要同时设置 -user 和 -password 才会启用认证")
 	}
 	fmt.Printf("当前测速网址: %s\n", speedTestURL)
+	if skipGeoCheck {
+		fmt.Println("地区验证: 已跳过")
+	} else {
+		fmt.Println("地区验证: 启用")
+	}
 	if strings.TrimSpace(customDNSServer) == "" {
 		fmt.Println("当前 DNS: 系统 DNS")
 	} else {
